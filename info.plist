@@ -79,82 +79,91 @@
 				<key>runningsubtext</key>
 				<string>Processing...</string>
 				<key>script</key>
-				<string>import sys
+				<string>#!/usr/bin/env python3
+import sys
 import csv
 import json
 
-def fuzzy_search(s1, s2):
-    """Perform a fuzzy search to compare similarity between two strings.
+# Threshold for score above which results are considered matches
+import os  # Import the os module to access environment variables
+
+# Use environment variable for threshold, fallback to a default if not set
+threshold = int(os.getenv('Fuzzy_Threshold', '60'))
+
+
+def levenshtein_distance(s1, s2):
+    """Calculate the Levenshtein distance between two strings.
 
     Args:
         s1 (str): First string to compare.
         s2 (str): Second string to compare.
 
     Returns:
-        float: A normalized score representing the similarity.
+        int: The computed Levenshtein distance.
     """
-    s1, s2 = s1.lower(), s2.lower()
-    score = 0
-    len1, len2 = len(s1), len(s2)
-    if len1 == 0 or len2 == 0:
-        return 0
+    if len(s1) &lt; len(s2):
+        return levenshtein_distance(s2, s1)
 
-    # Calculate frequency of characters
-    char_count1 = {}
-    char_count2 = {}
-    for char in s1:
-        char_count1[char] = char_count1.get(char, 0) + 1
-    for char in s2:
-        char_count2[char] = char_count2.get(char, 0) + 1
+    if len(s2) == 0:
+        return len(s1)
 
-    # Calculate score based on character matching
-    for char in char_count1:
-        if char in char_count2:
-            score += min(char_count1[char], char_count2[char])
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
 
-    # Calculate score based on sequence
-    common_chars = []
-    i, j = 0, 0
-    while i &lt; len1 and j &lt; len2:
-        if s1[i] == s2[j]:
-            common_chars.append(s1[i])
-            i += 1
-            j += 1
-        elif s1[i] &lt; s2[j]:
-            i += 1
-        else:
-            j += 1
+    return previous_row[-1]
 
-    # Compute the length of the Longest Common Subsequence (LCS)
-    lcs_length = len(common_chars)
-    score += lcs_length
 
-    # Normalize the score
-    normalized_score = (2.0 * score) / (len1 + len2)
-    return normalized_score
+def partial_ratio(s1, s2):
+    """Calculate the partial ratio between two strings based on substring Levenshtein distance.
 
-# Read CSV file
+    Args:
+        s1 (str): Smaller string.
+        s2 (str): Larger string or full string.
+
+    Returns:
+        float: Highest partial match score as a percentage.
+    """
+    if len(s1) &gt; len(s2):
+        s1, s2 = s2, s1
+
+    m = len(s1)
+    n = len(s2)
+    ratio = 0
+
+    for i in range(n - m + 1):
+        sub_string = s2[i:i + m]
+        dist = levenshtein_distance(s1, sub_string)
+        local_ratio = 100 - (dist / len(sub_string) * 100)
+        if local_ratio &gt; ratio:
+            ratio = local_ratio
+
+    return ratio
+
 prompts = []
 with open('./awesome-chatgpt-prompts/prompts.csv', 'r') as file:
     reader = csv.DictReader(file)
     for row in reader:
         prompts.append((row['act'], row['prompt']))
 
-# Get the search term from command line arguments
 query = sys.argv[1]
 
-# Perform fuzzy matching
+# Find and sort prompts by relevance score above a threshold
 results = []
 for act, prompt in prompts:
-    score = fuzzy_search(query, act)
-    if score &gt; 0.2:  # Set a threshold to filter results
-        results.append({"title": act, "subtitle": prompt, "arg": prompt, "text": {
-                       "copy": prompt, "largetype": prompt}, "score": score})
+    score = partial_ratio(query, act)
+    if score &gt; threshold:
+        results.append({"title": act, "subtitle": prompt, "arg": prompt, 
+                        "text": {"copy": prompt, "largetype": prompt}, "score": score})
 
-# Sort results by score
 results.sort(key=lambda x: x['score'], reverse=True)
 
-# Output results in JSON format for Alfred to parse
 output = {"items": results}
 print(json.dumps(output))</string>
 				<key>scriptargtype</key>
@@ -185,22 +194,42 @@ print(json.dumps(output))</string>
 		<key>4EC60211-ED6B-431B-ABC2-BEA54A9352FF</key>
 		<dict>
 			<key>xpos</key>
-			<real>95</real>
+			<real>65</real>
 			<key>ypos</key>
-			<real>135</real>
+			<real>90</real>
 		</dict>
 		<key>81DF6708-722F-45CA-B380-BBF4FC11917C</key>
 		<dict>
 			<key>xpos</key>
-			<real>305</real>
+			<real>275</real>
 			<key>ypos</key>
-			<real>135</real>
+			<real>90</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
-	<array/>
-	<key>variablesdontexport</key>
-	<array/>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>60</string>
+				<key>placeholder</key>
+				<string>60</string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>The match degree between the input content and the role content</string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>Fuzzy_Threshold</string>
+		</dict>
+	</array>
 	<key>version</key>
 	<string>1.0.0</string>
 	<key>webaddress</key>
