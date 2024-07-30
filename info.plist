@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string></string>
+	<key>category</key>
+	<string>Tools</string>
+	<key>connections</key>
+	<dict>
+		<key>4EC60211-ED6B-431B-ABC2-BEA54A9352FF</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>81DF6708-722F-45CA-B380-BBF4FC11917C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>William</string>
+	<key>description</key>
+	<string>Quickly find and copy GPT prompts with fuzzy matching.</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>GPT Prompter</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<false/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>81DF6708-722F-45CA-B380-BBF4FC11917C</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>gptcharacter||gc</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Processing...</string>
+				<key>script</key>
+				<string>import sys
+import csv
+import json
+
+def fuzzy_search(s1, s2):
+    """Perform a fuzzy search to compare similarity between two strings.
+
+    Args:
+        s1 (str): First string to compare.
+        s2 (str): Second string to compare.
+
+    Returns:
+        float: A normalized score representing the similarity.
+    """
+    s1, s2 = s1.lower(), s2.lower()
+    score = 0
+    len1, len2 = len(s1), len(s2)
+    if len1 == 0 or len2 == 0:
+        return 0
+
+    # Calculate frequency of characters
+    char_count1 = {}
+    char_count2 = {}
+    for char in s1:
+        char_count1[char] = char_count1.get(char, 0) + 1
+    for char in s2:
+        char_count2[char] = char_count2.get(char, 0) + 1
+
+    # Calculate score based on character matching
+    for char in char_count1:
+        if char in char_count2:
+            score += min(char_count1[char], char_count2[char])
+
+    # Calculate score based on sequence
+    common_chars = []
+    i, j = 0, 0
+    while i &lt; len1 and j &lt; len2:
+        if s1[i] == s2[j]:
+            common_chars.append(s1[i])
+            i += 1
+            j += 1
+        elif s1[i] &lt; s2[j]:
+            i += 1
+        else:
+            j += 1
+
+    # Compute the length of the Longest Common Subsequence (LCS)
+    lcs_length = len(common_chars)
+    score += lcs_length
+
+    # Normalize the score
+    normalized_score = (2.0 * score) / (len1 + len2)
+    return normalized_score
+
+# Read CSV file
+prompts = []
+with open('./awesome-chatgpt-prompts/prompts.csv', 'r') as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        prompts.append((row['act'], row['prompt']))
+
+# Get the search term from command line arguments
+query = sys.argv[1]
+
+# Perform fuzzy matching
+results = []
+for act, prompt in prompts:
+    score = fuzzy_search(query, act)
+    if score &gt; 0.2:  # Set a threshold to filter results
+        results.append({"title": act, "subtitle": prompt, "arg": prompt, "text": {
+                       "copy": prompt, "largetype": prompt}, "score": score})
+
+# Sort results by score
+results.sort(key=lambda x: x['score'], reverse=True)
+
+# Output results in JSON format for Alfred to parse
+output = {"items": results}
+print(json.dumps(output))</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Enter a keyword to search for related GPT prompts using fuzzy matching.</string>
+				<key>title</key>
+				<string>Search Prompts</string>
+				<key>type</key>
+				<integer>9</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>4EC60211-ED6B-431B-ABC2-BEA54A9352FF</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>The "GPT Prompter" is a workflow designed to enhance productivity and efficiency for users leveraging the capabilities of ChatGPT. It allows for the quick finding and copying of GPT prompts from the repository "awesome-chatgpt-prompts" available on GitHub.</string>
+	<key>uidata</key>
+	<dict>
+		<key>4EC60211-ED6B-431B-ABC2-BEA54A9352FF</key>
+		<dict>
+			<key>xpos</key>
+			<real>95</real>
+			<key>ypos</key>
+			<real>135</real>
+		</dict>
+		<key>81DF6708-722F-45CA-B380-BBF4FC11917C</key>
+		<dict>
+			<key>xpos</key>
+			<real>305</real>
+			<key>ypos</key>
+			<real>135</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>1.0.0</string>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>
